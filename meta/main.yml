@@ -1,0 +1,21 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: apache2-mod-oauth2
+  author: tkanemoto
+  description: Builds and installs mod_oauth2 on Ubuntu machines
+  license: "license (BSD, MIT)"
+  min_ansible_version: 2.4
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - development
+    - packaging
+    - apache2
+    - oauth2

@@ -1,0 +1,138 @@
+---
+- name: Define libcurl_dev_package
+  set_fact:
+    libcurl_dev_package: libcurl4-{{ libcurl4_ssl_variant }}-dev
+  tags: [liboauth2, mod_oauth2]
+
+- name: Set the list of dev packages
+  set_fact:
+    liboauth2_dev_packages:
+      - autoconf
+      - '{{ libcurl_dev_package }}'
+      - libssl1.0-dev
+      - gcc
+      - gettext
+      - make
+      - apache2-dev
+      - libcjose-dev
+      - libjansson-dev
+  tags: [liboauth2, mod_oauth2]
+
+- name: Install dev pcakges
+  apt:
+    name: '{{ liboauth2_dev_packages }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: Make sure oauth2 source dir exists and is owned by user
+  file:
+    path: '{{ liboauth2_source_dir }}'
+    state: directory
+    owner: '{{ liboauth2_source_user }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: Clone or fetch liboauth2 repo
+  git:
+    repo: '{{ liboauth2_source_url }}'
+    dest: '{{ liboauth2_source_dir }}'
+    version: '{{ liboauth2_source_version }}'
+    accept_hostkey: true
+  become_user: '{{ liboauth2_source_user }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: 'Run autogen.sh (liboauth2)'
+  command: ./autogen.sh
+  args:
+    chdir: '{{ liboauth2_source_dir }}'
+    creates: '{{ liboauth2_source_dir }}/configure'
+  become_user: '{{ liboauth2_source_user }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: Configure (liboauth2)
+  command: ./configure
+  args:
+    chdir: '{{ liboauth2_source_dir }}'
+    creates: '{{ liboauth2_source_dir }}/Makefile'
+  environment:
+    CPPFLAGS: '-I/usr/include/apache2/'
+  become_user: '{{ liboauth2_source_user }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: Make (liboauth2)
+  command: make
+  args:
+    chdir: '{{ liboauth2_source_dir }}'
+    creates: '{{ liboauth2_source_dir }}/.libs/liboauth2.so'
+  become_user: '{{ liboauth2_source_user }}'
+  tags: [liboauth2, mod_oauth2]
+
+- name: Install (liboauth2)
+  command: make install
+  args:
+    chdir: '{{ liboauth2_source_dir }}'
+    creates: /usr/local/lib/liboauth2.so'
+  notify: 'run ldconfig'
+  tags: [liboauth2, mod_oauth2]
+
+# mod_oauth2
+- name: Make sure mod_oauth2 source dir exists and is owned by user
+  file:
+    path: '{{ mod_oauth2_source_dir }}'
+    state: directory
+    owner: '{{ mod_oauth2_source_user }}'
+  tags: [mod_oauth2]
+
+- name: Clone or fetch mod_oauth2 repo
+  git:
+    repo: '{{ mod_oauth2_source_url }}'
+    dest: '{{ mod_oauth2_source_dir }}'
+    version: '{{ mod_oauth2_source_version }}'
+    accept_hostkey: true
+  become_user: '{{ mod_oauth2_source_user }}'
+  tags: [mod_oauth2]
+
+- name: 'Run autogen.sh (mod_oauth2)'
+  command: ./autogen.sh
+  args:
+    chdir: '{{ mod_oauth2_source_dir }}'
+    creates: '{{ mod_oauth2_source_dir }}/configure'
+  become_user: '{{ mod_oauth2_source_user }}'
+  tags: [mod_oauth2]
+
+- name: Configure (mod_oauth2)
+  command: ./configure
+  args:
+    chdir: '{{ mod_oauth2_source_dir }}'
+    creates: '{{ mod_oauth2_source_dir }}/Makefile'
+  environment:
+    CPPFLAGS: '-I/usr/include/apache2/'
+  become_user: '{{ mod_oauth2_source_user }}'
+  tags: [mod_oauth2]
+
+- name: Make (mod_oauth2)
+  command: make
+  args:
+    chdir: '{{ mod_oauth2_source_dir }}'
+    creates: '{{ mod_oauth2_source_dir }}/.libs/mod_oauth2.so'
+  become_user: '{{ mod_oauth2_source_user }}'
+  tags: [mod_oauth2]
+
+- name: Install (mod_oauth2)
+  command: make install
+  args:
+    chdir: '{{ mod_oauth2_source_dir }}'
+    creates: /usr/lib/mod_oauth2.so'
+  notify: 'run ldconfig'
+  tags: [mod_oauth2]
+
+- name: Add apache2 .load file for mod_oauth2
+  copy:
+    dest: '/etc/apache2/mods-available/oauth2.load'
+    content: 'LoadModule oauth2_module /usr/lib/apache2/modules/mod_oauth2.so'
+  tags: [mod_oauth2]
+
+- name: Copy apache2 .conf file for mod_oauth2
+  copy:
+    dest: '/etc/apache2/mods-available/oauth2.conf'
+    src: '{{ mod_oauth2_source_dir }}/oauth2.conf'
+    remote_src: yes
+  tags: [mod_oauth2]
